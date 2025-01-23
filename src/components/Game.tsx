@@ -32,24 +32,28 @@ const Game = () => {
   useEffect(() => {
     if (!canvasRef.current) return;
 
+    // Set canvas size to match window dimensions
+    canvasRef.current.width = window.innerWidth;
+    canvasRef.current.height = window.innerHeight;
+
     const render = Render.create({
       canvas: canvasRef.current,
       engine: engineRef.current,
       options: {
-        width: 640,
-        height: 480,
+        width: window.innerWidth,
+        height: window.innerHeight,
         wireframes: false,
         background: 'transparent',
         pixelRatio: window.devicePixelRatio || 1,
       },
     });
 
-    // Create invisible walls
+    // Adjust wall positions based on window dimensions
     const walls = [
-      Bodies.rectangle(320, -10, 640, 20, { isStatic: true, render: { visible: false } }),
-      Bodies.rectangle(320, 490, 640, 20, { isStatic: true, render: { visible: false } }),
-      Bodies.rectangle(-10, 240, 20, 480, { isStatic: true, render: { visible: false } }),
-      Bodies.rectangle(650, 240, 20, 480, { isStatic: true, render: { visible: false } }),
+      Bodies.rectangle(window.innerWidth / 2, -10, window.innerWidth, 20, { isStatic: true, render: { visible: false } }),
+      Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 10, window.innerWidth, 20, { isStatic: true, render: { visible: false } }),
+      Bodies.rectangle(-10, window.innerHeight / 2, 20, window.innerHeight, { isStatic: true, render: { visible: false } }),
+      Bodies.rectangle(window.innerWidth + 10, window.innerHeight / 2, 20, window.innerHeight, { isStatic: true, render: { visible: false } }),
     ];
     World.add(engineRef.current.world, walls);
 
@@ -143,13 +147,21 @@ const Game = () => {
     return () => clearInterval(spawnInterval);
   }, [gameOver]);
 
-  // Game loop
+  // Remove duplicate spawn effect
   useEffect(() => {
     if (gameOver) return;
-
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
+
+    // Handle window resize
+    const handleResize = () => {
+      if (canvas) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+    };
+    window.addEventListener('resize', handleResize);
 
     const gameLoop = () => {
       if (gameOver) return;
@@ -164,7 +176,7 @@ const Game = () => {
             x: fruit.x + fruit.speedX,
             speedY: fruit.speedY + 0.5, // gravity
           }))
-          .filter(fruit => fruit.y < window.innerHeight + 100);
+          .filter(fruit => fruit.y < canvas.height + 100); // Use canvas height instead of window
       });
 
       // Draw fruits
@@ -179,7 +191,10 @@ const Game = () => {
     };
 
     const animationId = requestAnimationFrame(gameLoop);
-    return () => cancelAnimationFrame(animationId);
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [fruits, gameOver, setGameOver]);
 
   return (
